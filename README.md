@@ -25,7 +25,7 @@ Open <http://localhost:3005>. The first run creates a fictional Acme Billing API
 ## Design notes
 
 - Each snapshot is preserved, so a new comparison does not overwrite the baseline.
-- Analysis runs on the server and produces a structured change record that can be consumed by CI in a future integration.
+- A local CI command compares two OpenAPI JSON documents and fails on detected breaking changes. The included GitHub Actions workflow checks the sample contract and runs the regression tests.
 - The analyzer is intentionally conservative and rule-based. It is a useful first review, not a complete OpenAPI compatibility proof. A real release workflow should add reference resolution, response-schema compatibility, test traffic, and team review.
 - This MVP accepts OpenAPI JSON. YAML parsing and GitHub App installation are future work.
 
@@ -39,4 +39,5 @@ Open <http://localhost:3005>. The first run creates a fictional Acme Billing API
 
 ## Product direction
 
-The product could grow into a pull-request check for API owners and their SDK or integration consumers. A useful pricing experiment would charge by the number of API contracts monitored, with a free tier for one public spec.
+The product could grow into a pull-request check for API owners and their SDK or integration consumers. A useful pricing experiment would charge by the number of API contracts monitored, with a free tier for one public spec.\n\n## Run the CI contract check\n\n```bash\nnpm test\nnpm run contract:check -- --base openapi/base.json --candidate openapi/candidate.json\n```\n\nPoint the command at your baseline and candidate OpenAPI JSON files. The check exits nonzero when it finds removed operations, parameters, response codes, or request fields, changed parameter types, or newly required fields. The analyzer is intentionally conservative and does not yet compare response schemas or resolve references.
+

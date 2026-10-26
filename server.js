@@ -1,6 +1,6 @@
 const express=require('express'),Database=require('better-sqlite3'),path=require('node:path'),fs=require('node:fs');
 const app=express(),port=Number(process.env.PORT)||3005,dir=path.join(__dirname,'data');fs.mkdirSync(dir,{recursive:true});
-const db=new Database(path.join(dir,'specsentry.sqlite'));db.pragma('foreign_keys=ON');db.pragma('journal_mode=WAL');
+const db=new Database(process.env.DATABASE_PATH||path.join(dir,'specsentry.sqlite'));db.pragma('foreign_keys=ON');db.pragma('journal_mode=WAL');
 db.exec(`CREATE TABLE IF NOT EXISTS projects(id INTEGER PRIMARY KEY,name TEXT NOT NULL,repository TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);CREATE TABLE IF NOT EXISTS versions(id INTEGER PRIMARY KEY,project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,version TEXT NOT NULL,spec_json TEXT NOT NULL,breaking_count INTEGER NOT NULL DEFAULT 0,added_count INTEGER NOT NULL DEFAULT 0,change_summary TEXT NOT NULL DEFAULT '[]',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE(project_id,version));`);
 const demoSpec=(version,withLegacy=true)=>({
  openapi:'3.0.3',info:{title:'Acme Billing API',version},servers:[{url:'https://api.acme.test/v1'}],paths:{
