@@ -1,0 +1,23 @@
+services:
+  specsentry:
+    build: .
+    image: specsentry:local
+    ports:
+      - "${PORT:-3005}:3005"
+    environment:
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      RUST_LOG: ${RUST_LOG:-info}
+      SEED_DEMO: ${SEED_DEMO:-true}
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-2097152}
+      REQUEST_TIMEOUT_SECS: ${REQUEST_TIMEOUT_SECS:-15}
+    volumes:
+      - specsentry-data:/data
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  specsentry-data:

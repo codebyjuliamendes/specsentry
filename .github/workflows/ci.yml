@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: fmt · clippy · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test
+        run: cargo test --workspace --locked
+
+  docker:
+    name: image build · smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: specsentry:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start container
+        run: docker run -d --name specsentry -p 3005:3005 specsentry:ci
+      - name: Smoke test
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:3005/api/health; then break; fi
+            sleep 1
+          done
+          echo
+          curl -fsS http://localhost:3005/api/health | grep -q '"ok":true'
+          curl -fsS http://localhost:3005/ | grep -q '<title>SpecSentry'
+          curl -fsS http://localhost:3005/api/projects | grep -q 'Acme Billing API'
+          curl -fsSI http://localhost:3005/ | grep -qi '^content-security-policy:'
+          docker exec specsentry /usr/local/bin/specsentry healthcheck
+          test "$(docker inspect --format '{{.Config.User}}' specsentry)" = "nonroot:nonroot"
+      - name: CLI inside the image
+        run: |
+          docker run --rm -v "$PWD/openapi:/specs:ro" specsentry:ci check /specs/base.json /specs/candidate.json
+      - name: Container logs
+        if: always()
+        run: docker logs specsentry || true

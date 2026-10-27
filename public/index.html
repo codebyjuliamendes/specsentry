@@ -1,1 +1,196 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f6f7f8"><title>SpecSentry — API change impact</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/styles.css"><script defer src="/app.js"></script><link rel="icon" type="image/svg+xml" href="/mark-ss.svg"><link rel="apple-touch-icon" href="/mark-ss.svg"></head><body><aside class="sidebar"><a class="brand" href="/"><span class="brand-icon"><img class="brand-logo" src="/mark-ss.svg" alt=""></span><span>spec<span>sentry</span></span></a><div class="workspace"><span class="org-icon">A</span><span>Acme Engineering<small>Free workspace</small></span><b>⌄</b></div><div class="nav-label">DEVELOPER TOOLS</div><a class="nav active" href="#">◈ <span>API contracts</span></a><a class="nav" href="#changes">⌁ <span>Change reports</span></a><a class="nav" href="#history">◷ <span>Version history</span></a><div class="side-bottom"><div class="side-callout"><span>✳</span><strong>Ship with confidence.</strong><p>Catch breaking contract changes before your consumers do.</p></div><span class="user-avatar">JM</span><span class="user-name">Júlia Mendes<small>Developer</small></span><span class="online"></span></div></aside><main><header><div><div class="breadcrumbs">WORKSPACE <b>/</b> API CONTRACTS</div><h1>Contract overview</h1></div><div class="header-right"><span class="health"><i></i> All systems operational</span><button id="new-project" class="button secondary">+ Add API</button><button id="upload" class="button primary">Upload spec <span>↑</span></button></div></header><div class="page"><div class="project-heading"><div class="project-avatar">API</div><div class="project-name"><h2 id="project-name">Loading…</h2><p id="repo-name">—</p></div><div class="project-version"><small>LATEST VERSION</small><strong id="latest-version">—</strong></div><span id="risk-badge" class="badge">—</span></div><section class="metric-row"><article class="metric"><span>BREAKING CHANGES IN LATEST</span><strong id="breaking-total">—</strong><small>Needs a migration plan</small></article><article class="metric"><span>ADDITIONS IN LATEST</span><strong id="added-total">—</strong><small>Compatible additions</small></article><article class="metric"><span>LAST REVIEW</span><strong id="last-review">—</strong><small>Spec comparison completed</small></article><article class="metric"><span>VERSION SUGGESTION</span><strong id="version-hint">—</strong><small>Based on detected changes</small></article></section><section class="panel changes-panel" id="changes"><div class="panel-head"><div><span class="eyebrow">CHANGE REPORT</span><h3>What changed in <span id="change-version">—</span></h3><p>Compared with the previous API contract.</p></div><button id="download-report" class="button ghost">Export report ↓</button></div><div class="diff-head"><span>SEVERITY</span><span>CHANGE</span><span>OPERATION / FIELD</span><span>DETAIL</span></div><div id="change-list"></div></section><section class="panel history-panel" id="history"><div class="panel-head"><div><span class="eyebrow">CONTRACT HISTORY</span><h3>Versions tracked</h3><p>Every uploaded spec is stored as an immutable snapshot.</p></div><span class="version-count" id="version-count">—</span></div><div id="version-list"></div></section><footer>SpecSentry <span>API contract change monitor · OpenAPI JSON</span></footer></div></main><div id="modal" class="modal" hidden></div><div id="toast" class="toast"></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f7ff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f131b" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="SpecSentry compares OpenAPI snapshots and flags breaking contract changes before release.">
+  <title>SpecSentry — API change impact</title>
+  <link rel="icon" type="image/svg+xml" href="/mark-ss.svg">
+  <link rel="apple-touch-icon" href="/mark-ss.svg">
+  <link rel="preload" href="/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <!-- Applies the saved theme before first paint (external file: CSP forbids inline scripts). -->
+  <script src="/theme.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="SpecSentry home">
+      <img class="brand-logo" src="/mark-ss.svg" alt="" width="30" height="30">
+      <span class="brand-name" aria-hidden="true">spec<span>sentry</span></span>
+    </a>
+    <nav class="topnav" aria-label="Sections">
+      <a class="nav-link" href="#overview" aria-current="location">API contracts</a>
+      <a class="nav-link" href="#changes">Change reports</a>
+      <a class="nav-link" href="#history">Version history</a>
+    </nav>
+    <div class="topbar-end">
+      <p class="health" id="health" role="status">
+        <span class="health-dot" aria-hidden="true"></span>
+        <span class="health-text">Checking status…</span>
+      </p>
+      <button class="icon-button" id="theme-toggle" type="button" aria-pressed="false" title="Toggle dark mode">
+        <svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+        <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <span class="visually-hidden">Dark mode</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="page-head" id="overview" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Workspace <span aria-hidden="true">/</span> API contracts</p>
+        <h1 id="page-title">Contract overview</h1>
+      </div>
+      <div class="page-actions">
+        <div class="field-inline" id="project-picker" hidden>
+          <label for="project-select">API</label>
+          <select id="project-select"></select>
+        </div>
+        <button id="new-project" class="button secondary" type="button">
+          <span aria-hidden="true">+</span> Add API
+        </button>
+        <button id="upload" class="button primary" type="button" disabled>
+          Upload spec <span aria-hidden="true">↑</span>
+        </button>
+      </div>
+    </section>
+
+    <div id="load-error" class="notice notice-error" role="alert" hidden>
+      <p><strong>Could not load your contracts.</strong> <span class="notice-message"></span></p>
+      <button class="button secondary" id="retry" type="button">Try again</button>
+    </div>
+
+    <section id="empty" class="empty-state" hidden aria-labelledby="empty-title">
+      <img src="/mark-ss.svg" alt="" width="48" height="48">
+      <h2 id="empty-title">No API contracts yet</h2>
+      <p>Connect an API with a baseline OpenAPI document. Every later upload is compared against the latest snapshot.</p>
+      <button class="button primary" id="empty-create" type="button">Connect your first API</button>
+    </section>
+
+    <div id="dashboard" class="dashboard" aria-busy="true">
+      <section class="project-heading" aria-labelledby="project-name">
+        <div class="project-avatar" aria-hidden="true">API</div>
+        <div class="project-name">
+          <h2 id="project-name"><span class="skeleton">Loading contract…</span></h2>
+          <p id="repo-name" class="mono muted">&nbsp;</p>
+        </div>
+        <div class="project-version">
+          <span class="label">Latest version</span>
+          <strong id="latest-version" class="mono">—</strong>
+        </div>
+        <span id="risk-badge" class="badge" hidden></span>
+      </section>
+
+      <section class="metric-row" aria-label="Selected snapshot summary">
+        <article class="metric">
+          <h3 class="label">Breaking changes</h3>
+          <p class="metric-value" id="breaking-total">—</p>
+          <p class="metric-note">Needs a migration plan</p>
+        </article>
+        <article class="metric">
+          <h3 class="label">Warnings</h3>
+          <p class="metric-value" id="warning-total">—</p>
+          <p class="metric-note">Review before release</p>
+        </article>
+        <article class="metric">
+          <h3 class="label">Additions</h3>
+          <p class="metric-value" id="added-total">—</p>
+          <p class="metric-note">Compatible new operations</p>
+        </article>
+        <article class="metric">
+          <h3 class="label">Version suggestion</h3>
+          <p class="metric-value mono" id="version-hint">—</p>
+          <p class="metric-note" id="version-note">Based on detected changes</p>
+        </article>
+      </section>
+
+      <section class="panel" id="changes" aria-labelledby="changes-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Change report</p>
+            <h2 id="changes-title">What changed in <span id="change-version" class="mono accent">—</span></h2>
+            <p class="muted" id="change-context">Compared with the previous API contract.</p>
+          </div>
+          <button id="download-report" class="button ghost" type="button" disabled>
+            Export CSV <span aria-hidden="true">↓</span>
+          </button>
+        </div>
+        <table class="diff-table">
+          <caption class="visually-hidden">Detected contract changes for the selected snapshot</caption>
+          <thead>
+            <tr><th scope="col">Severity</th><th scope="col">Change</th><th scope="col">Operation / field</th><th scope="col">Detail</th></tr>
+          </thead>
+          <tbody id="change-list"></tbody>
+        </table>
+        <p id="change-empty" class="panel-empty" hidden></p>
+      </section>
+
+      <section class="panel" id="history" aria-labelledby="history-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Contract history</p>
+            <h2 id="history-title">Versions tracked</h2>
+            <p class="muted">Every uploaded spec is stored as an immutable snapshot. Select one to inspect its report.</p>
+          </div>
+          <span class="count-pill" id="version-count">—</span>
+        </div>
+        <ol class="version-list" id="version-list"></ol>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <strong>SpecSentry</strong>
+    <span>API contract change monitor · OpenAPI 3 JSON</span>
+  </footer>
+
+  <dialog id="spec-dialog" class="dialog" aria-labelledby="dialog-title" aria-describedby="dialog-subtitle">
+    <form id="spec-form" class="form" novalidate>
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">OpenAPI contract</p>
+          <h2 id="dialog-title">Upload a new snapshot</h2>
+        </div>
+        <button type="button" class="icon-button close" data-close aria-label="Close dialog">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <p id="dialog-subtitle" class="muted"></p>
+
+      <div class="project-fields">
+        <label for="field-name">Project name</label>
+        <input id="field-name" name="name" autocomplete="off" minlength="2" maxlength="80" required>
+        <label for="field-repository">GitHub repository <span class="optional">(optional)</span></label>
+        <input id="field-repository" name="repository" autocomplete="off" maxlength="120" placeholder="acme/payments-api">
+      </div>
+
+      <label for="field-version" id="field-version-label">Version</label>
+      <input id="field-version" name="version" autocomplete="off" inputmode="decimal" pattern="\d+\.\d+\.\d+" aria-describedby="field-version-hint">
+      <p class="hint" id="field-version-hint"></p>
+
+      <div class="spec-label-row">
+        <label for="field-spec">OpenAPI JSON</label>
+        <label class="file-button" for="field-file">Load .json file</label>
+        <input id="field-file" class="visually-hidden" type="file" accept=".json,application/json">
+      </div>
+      <textarea id="field-spec" name="spec" spellcheck="false" autocomplete="off" required aria-describedby="form-error"></textarea>
+
+      <p class="form-error" id="form-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" class="button secondary" data-close>Cancel</button>
+        <button type="submit" class="button primary" id="form-submit">Compare and save snapshot</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
