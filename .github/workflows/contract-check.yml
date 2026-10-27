@@ -1,17 +1,38 @@
 name: OpenAPI contract check
+
 on:
   pull_request:
   push:
     branches: [main]
+
+permissions:
+  contents: read
+
 jobs:
   compatibility:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build CLI
+        run: cargo build --release --locked -p specsentry
+      - name: Contract report
+        if: always()
+        run: |
+          ./target/release/specsentry check openapi/base.json openapi/candidate.json \
+            --format json --fail-on never > contract-report.json
+          {
+            echo '### OpenAPI contract check'
+            echo '```'
+            ./target/release/specsentry check openapi/base.json openapi/candidate.json --fail-on never
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          node-version: 20
-      - run: npm ci
-      - run: npm test
-      - name: Check candidate OpenAPI document
-        run: npm run contract:check -- --base openapi/base.json --candidate openapi/candidate.json
+          name: contract-report
+          path: contract-report.json
+          if-no-files-found: ignore
+      - name: Fail on breaking changes
+        run: ./target/release/specsentry check openapi/base.json openapi/candidate.json --format github
