@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ---- Build ----
-FROM rust:1.97-slim-bookworm AS builder
+FROM rust:1.99-slim-bookworm AS builder
 WORKDIR /src
 
 # Build dependencies first against stub sources so this layer is reused
