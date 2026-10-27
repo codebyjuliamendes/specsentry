@@ -116,6 +116,7 @@ fn init_logging(format: LogFormat) {
             .json()
             .flatten_event(true)
             .with_current_span(true)
+            .with_span_list(false)
             .init(),
         LogFormat::Pretty => builder.init(),
     }

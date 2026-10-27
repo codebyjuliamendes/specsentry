@@ -1,6 +1,7 @@
 //! `specsentry serve` runs the web UI + API; `specsentry check` gates CI.
 
 mod check;
+mod healthcheck;
 mod serve;
 
 use std::process::ExitCode;
@@ -24,11 +25,14 @@ enum Command {
     Serve(serve::ServeArgs),
     /// Compare two OpenAPI JSON documents and fail on breaking changes.
     Check(check::CheckArgs),
+    /// Probe a running server's health endpoint (for container HEALTHCHECK).
+    Healthcheck(healthcheck::HealthcheckArgs),
 }
 
 fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Check(args) => check::run(&args),
+        Command::Healthcheck(args) => healthcheck::run(&args),
         Command::Serve(args) => match serve::run(args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(err) => {
