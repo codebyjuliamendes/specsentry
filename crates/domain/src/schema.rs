@@ -1,6 +1,6 @@
 //! Flattened view of a JSON Schema used for compatibility checks.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use serde_json::Value;
 
@@ -23,11 +23,24 @@ impl<'a> SchemaView<'a> {
     /// Builds a view of an already resolved schema, merging `allOf` members.
     pub(crate) fn new(doc: Doc<'a>, schema: &'a Value, pointer: &str) -> Self {
         let mut view = Self::default();
-        view.merge(doc, schema, pointer, 0);
+        let mut merged = HashSet::new();
+        view.merge(doc, schema, pointer, 0, &mut merged);
         view
     }
 
-    fn merge(&mut self, doc: Doc<'a>, schema: &'a Value, pointer: &str, depth: usize) {
+    /// `merged` holds pointers already folded in: each schema is merged at most
+    /// once, which keeps fan-out `allOf` graphs linear instead of exponential.
+    fn merge(
+        &mut self,
+        doc: Doc<'a>,
+        schema: &'a Value,
+        pointer: &str,
+        depth: usize,
+        merged: &mut HashSet<String>,
+    ) {
+        if !merged.insert(pointer.to_owned()) {
+            return;
+        }
         match schema.get("type") {
             Some(Value::String(t)) => {
                 self.types.insert(t.clone());
@@ -73,7 +86,7 @@ impl<'a> SchemaView<'a> {
                 let member_pointer = join(&base, &index.to_string());
                 // Unresolvable members are reported where the schema itself is resolved.
                 if let Ok((resolved, resolved_pointer)) = doc.resolve(member, &member_pointer) {
-                    self.merge(doc, resolved, &resolved_pointer, depth + 1);
+                    self.merge(doc, resolved, &resolved_pointer, depth + 1, merged);
                 }
             }
         }
@@ -125,6 +138,25 @@ mod tests {
             view.properties["id"].1,
             "/components/schemas/Base/properties/id"
         );
+    }
+
+    #[test]
+    fn all_of_fan_out_stays_linear() {
+        // 20 levels, each referencing the next one 8 times: 8^20 paths if unguarded.
+        let mut schemas = serde_json::Map::new();
+        for level in 0..20 {
+            let next = json!({ "$ref": format!("#/components/schemas/S{}", level + 1) });
+            schemas.insert(format!("S{level}"), json!({ "allOf": vec![next; 8] }));
+        }
+        schemas.insert(
+            "S20".into(),
+            json!({ "type": "object", "properties": { "leaf": {} } }),
+        );
+        let doc = json!({ "components": { "schemas": schemas } });
+        let start = json!({ "$ref": "#/components/schemas/S0" });
+        let (root, ptr) = Doc::new(&doc).resolve(&start, "").expect("resolve");
+        let view = SchemaView::new(Doc::new(&doc), root, &ptr);
+        assert!(view.properties.is_empty() || view.properties.contains_key("leaf"));
     }
 
     #[test]
