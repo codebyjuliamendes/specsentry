@@ -1,0 +1,13 @@
+# Keep the build context small and free of local state.
+target/
+data/
+.git/
+.github/
+node_modules/
+*.sqlite
+*.sqlite-*
+.env
+.env.*
+!.env.example
+Dockerfile
+docker-compose.yml
